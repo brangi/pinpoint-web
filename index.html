@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pinpoint Drive Viewer</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+        #map {
+            width: 100%;
+            height: 100vh;
+        }
+        .info-panel {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 1000;
+            background-color: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+            max-width: 300px;
+        }
+        h1 {
+            margin: 0 0 10px 0;
+            font-size: 20px;
+        }
+        p {
+            margin: 5px 0;
+            font-size: 14px;
+        }
+        .no-route {
+            display: flex;
+            height: 100%;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            text-align: center;
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div id="content">
+        <!-- The map or instructions will be shown here -->
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <script>
+        // Polyline decoding function (Google's algorithm)
+        function decodePolyline(encoded) {
+            let index = 0;
+            const len = encoded.length;
+            const coordinates = [];
+            let lat = 0;
+            let lng = 0;
+
+            while (index < len) {
+                let b;
+                let shift = 0;
+                let result = 0;
+                
+                do {
+                    b = encoded.charCodeAt(index++) - 63;
+                    result |= (b & 0x1f) << shift;
+                    shift += 5;
+                } while (b >= 0x20);
+                
+                const dlat = ((result & 1) ? ~(result >> 1) : (result >> 1));
+                lat += dlat;
+
+                shift = 0;
+                result = 0;
+                
+                do {
+                    b = encoded.charCodeAt(index++) - 63;
+                    result |= (b & 0x1f) << shift;
+                    shift += 5;
+                } while (b >= 0x20);
+                
+                const dlng = ((result & 1) ? ~(result >> 1) : (result >> 1));
+                lng += dlng;
+
+                coordinates.push([lat * 1e-5, lng * 1e-5]);
+            }
+            
+            return coordinates;
+        }
+
+        // Parse URL parameters
+        function getUrlParameter(name) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(name);
+        }
+
+        // Main function
+        document.addEventListener('DOMContentLoaded', function() {
+            const contentDiv = document.getElementById('content');
+            const routeParam = getUrlParameter('route');
+
+            if (!routeParam) {
+                // No route parameter found
+                contentDiv.innerHTML = `
+                    <div class="no-route">
+                        <h1>No route specified</h1>
+                        <p>This page displays shared routes from the Pinpoint app.</p>
+                        <p>Share a drive from the Pinpoint app to view it here.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Create a map div
+            contentDiv.innerHTML = `
+                <div id="map"></div>
+                <div class="info-panel">
+                    <h1>Pinpoint Drive</h1>
+                    <p>Viewing a shared drive route</p>
+                </div>
+            `;
+
+            try {
+                // Decode the polyline
+                const coordinates = decodePolyline(routeParam);
+                
+                if (coordinates.length === 0) {
+                    throw new Error('No valid coordinates found');
+                }
+
+                // Initialize the map
+                const map = L.map('map');
+
+                // Add tile layer (OpenStreetMap)
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                }).addTo(map);
+
+                // Create a polyline
+                const routeLine = L.polyline(coordinates, {
+                    color: 'blue',
+                    weight: 5,
+                    opacity: 0.7
+                }).addTo(map);
+
+                // Add markers for start and end points
+                const startPoint = coordinates[0];
+                const endPoint = coordinates[coordinates.length - 1];
+
+                L.marker(startPoint).addTo(map)
+                    .bindPopup('Start')
+                    .openPopup();
+                
+                L.marker(endPoint).addTo(map)
+                    .bindPopup('End');
+
+                // Calculate bounds and fit the map
+                const bounds = routeLine.getBounds();
+                map.fitBounds(bounds, {
+                    padding: [50, 50]
+                });
+
+                // Update info panel with stats
+                const distanceKm = calculateRouteDistance(coordinates) / 1000;
+                const distanceMiles = distanceKm * 0.621371;
+                
+                document.querySelector('.info-panel').innerHTML += `
+                    <p>Distance: ${distanceMiles.toFixed(1)} miles (${distanceKm.toFixed(1)} km)</p>
+                    <p>Points: ${coordinates.length}</p>
+                `;
+
+            } catch (error) {
+                console.error('Error processing route:', error);
+                contentDiv.innerHTML = `
+                    <div class="no-route">
+                        <h1>Error displaying route</h1>
+                        <p>There was a problem processing the route data.</p>
+                        <p>Error: ${error.message}</p>
+                    </div>
+                `;
+            }
+        });
+
+        // Function to calculate route distance
+        function calculateRouteDistance(coordinates) {
+            let distance = 0;
+            for (let i = 1; i < coordinates.length; i++) {
+                distance += getDistanceFromLatLonInM(
+                    coordinates[i-1][0], coordinates[i-1][1],
+                    coordinates[i][0], coordinates[i][1]
+                );
+            }
+            return distance;
+        }
+
+        // Calculate distance between two points using Haversine formula
+        function getDistanceFromLatLonInM(lat1, lon1, lat2, lon2) {
+            const R = 6371e3; // Earth's radius in meters
+            const φ1 = lat1 * Math.PI/180;
+            const φ2 = lat2 * Math.PI/180;
+            const Δφ = (lat2-lat1) * Math.PI/180;
+            const Δλ = (lon2-lon1) * Math.PI/180;
+
+            const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                    Math.cos(φ1) * Math.cos(φ2) *
+                    Math.sin(Δλ/2) * Math.sin(Δλ/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+            return R * c;
+        }
+    </script>
+</body>
+</html>

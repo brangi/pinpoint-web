@@ -161,8 +161,42 @@
     </style>
 </head>
 <body>
-    <div id="content">
-        <!-- The map or instructions will be shown here -->
+    <div id="content" class="h-full">
+        <!-- The map and route-specific UI will be created here -->
+    </div>
+
+    <div id="no-route-placeholder" class="hidden h-full flex flex-col items-center justify-center bg-gray-50 font-sans p-8 relative overflow-hidden">
+        <div class="absolute inset-0 bg-gradient-to-br from-blue-50 via-white to-pinpoint-blue/10 opacity-60"></div>
+        <div class="absolute top-10 left-8 w-16 h-16 bg-pinpoint-blue/20 rounded-full blur-xl animate-pulse"></div>
+        <div class="absolute top-32 right-12 w-12 h-12 bg-blue-300/30 rounded-full blur-lg animate-pulse delay-1000"></div>
+        <div class="absolute bottom-40 left-16 w-20 h-20 bg-pinpoint-blue/15 rounded-full blur-2xl animate-pulse delay-500"></div>
+        
+        <div class="mb-8 relative z-10">
+            <div class="relative">
+                <div class="w-40 h-40 flex items-center justify-center relative">
+                    <div class="absolute inset-0 bg-gradient-to-br from-pinpoint-blue/20 to-blue-300/30 rounded-full blur-lg"></div>
+                    <div class="relative z-10">
+                        <div class="w-16 h-16 bg-gradient-to-br from-pinpoint-blue to-pinpoint-dark-blue rounded-full flex items-center justify-center shadow-lg border-4 border-white">
+                            <div class="w-8 h-8 bg-white rounded-full flex items-center justify-center">
+                                <i class="fas fa-route text-pinpoint-blue text-lg"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="absolute inset-0 flex items-center justify-center">
+                        <div class="w-24 h-24 border-2 border-pinpoint-blue/30 rounded-full animate-ping"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="text-center relative z-10">
+            <h1 class="text-3xl font-bold text-gray-800 mb-4">No Route Specified</h1>
+            <p class="text-gray-600 text-lg leading-relaxed mb-8">This page displays shared routes from the Pinpoint app.</p>
+            <a href="https://apps.apple.com/app/pinpoint" 
+               class="inline-block bg-pinpoint-blue hover:bg-pinpoint-dark-blue text-white font-bold py-3 px-8 rounded-full transition-transform transform hover:scale-105 shadow-lg">
+                <i class="fab fa-apple mr-2"></i> Download Pinpoint
+            </a>
+        </div>
     </div>
 
     <!-- Leaflet JS -->
@@ -218,58 +252,23 @@
         // Main function
         document.addEventListener('DOMContentLoaded', function() {
             const contentDiv = document.getElementById('content');
+            const noRoutePlaceholder = document.getElementById('no-route-placeholder');
             const routeParam = getUrlParameter('route');
 
             if (!routeParam) {
-                // Use the new engaging UI for the "no route" case
-                document.body.innerHTML = `
-                    <div class="flex flex-col items-center justify-center h-screen bg-gray-50 font-sans p-8 relative overflow-hidden">
-                        <div class="absolute inset-0 bg-gradient-to-br from-blue-50 via-white to-pinpoint-blue/10 opacity-60"></div>
-                        <div class="absolute top-10 left-8 w-16 h-16 bg-pinpoint-blue/20 rounded-full blur-xl animate-pulse"></div>
-                        <div class="absolute top-32 right-12 w-12 h-12 bg-blue-300/30 rounded-full blur-lg animate-pulse delay-1000"></div>
-                        <div class="absolute bottom-40 left-16 w-20 h-20 bg-pinpoint-blue/15 rounded-full blur-2xl animate-pulse delay-500"></div>
-                        
-                        <div class="mb-8 relative z-10">
-                            <div class="relative">
-                                <div class="w-40 h-40 flex items-center justify-center relative">
-                                    <div class="absolute inset-0 bg-gradient-to-br from-pinpoint-blue/20 to-blue-300/30 rounded-full blur-lg"></div>
-                                    <div class="relative z-10">
-                                        <div class="w-16 h-16 bg-gradient-to-br from-pinpoint-blue to-pinpoint-dark-blue rounded-full flex items-center justify-center shadow-lg border-4 border-white">
-                                            <div class="w-8 h-8 bg-white rounded-full flex items-center justify-center">
-                                                <i class="fas fa-route text-pinpoint-blue text-lg"></i>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="absolute inset-0 flex items-center justify-center">
-                                        <div class="w-24 h-24 border-2 border-pinpoint-blue/30 rounded-full animate-ping"></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="text-center relative z-10">
-                            <h1 class="text-3xl font-bold text-gray-800 mb-4">No Route Specified</h1>
-                            <p class="text-gray-600 text-lg leading-relaxed mb-8">This page displays shared routes from the Pinpoint app.</p>
-                            <a href="https://apps.apple.com/app/pinpoint" 
-                               class="inline-block bg-pinpoint-blue hover:bg-pinpoint-dark-blue text-white font-bold py-3 px-8 rounded-full transition-transform transform hover:scale-105 shadow-lg">
-                                <i class="fab fa-apple mr-2"></i> Download Pinpoint
-                            </a>
-                        </div>
-                    </div>
-                `;
+                contentDiv.classList.add('hidden');
+                noRoutePlaceholder.classList.remove('hidden');
                 return;
             }
 
+            contentDiv.classList.remove('hidden');
+            noRoutePlaceholder.classList.add('hidden');
             contentDiv.innerHTML = `<div id="map"></div>`;
 
             try {
                 const coordinates = decodePolyline(routeParam);
-                
-                if (coordinates.length === 0) {
-                    throw new Error('No valid coordinates found');
-                }
+                if (coordinates.length === 0) throw new Error('No valid coordinates found');
 
-                // Initialize the map, remove default zoom control
                 const map = L.map('map', { zoomControl: false });
                 
                 // Add zoom control to bottom right

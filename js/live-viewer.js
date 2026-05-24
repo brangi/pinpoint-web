@@ -41,6 +41,7 @@
     }
     showCard();
   }
+  let countdownTimer = null;
   function renderCountdown(expiresAtMs) {
     const el = $("countdown");
     function tick() {
@@ -54,8 +55,9 @@
       const m = totalMin % 60;
       el.textContent = h > 0 ? `${h}h ${m}m left` : `${m}m left`;
     }
+    if (countdownTimer) clearInterval(countdownTimer);
     tick();
-    setInterval(tick, 30_000);
+    countdownTimer = setInterval(tick, 30_000);
   }
 
   // ===== URL parsing
@@ -126,8 +128,14 @@
       const el = marker.getElement();
       if (el) el.classList.add("ended");
     }
+    if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
+    const cdEl = $("countdown");
+    if (cdEl) cdEl.textContent = "";
     showStatus("Share has ended", "success");
     try { client.end(true); } catch (_) {}
+    // Give the user a few seconds to read the banner, then send them to
+    // the Pinpoint landing page rather than leaving them on a dead viewer.
+    setTimeout(() => { window.location.href = "https://pinpointing.me/"; }, 5000);
   }
 
   function armStaleTimer() {

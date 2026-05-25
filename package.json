@@ -1,0 +1,14 @@
+{
+  "name": "pinpoint-web",
+  "version": "1.0.0",
+  "description": "Pinpoint public web viewers — live share + static trip route. Static site, GitHub Pages hosted.",
+  "private": true,
+  "scripts": {
+    "build": "tailwindcss -i src/input.css -o dist/styles.css --minify",
+    "watch": "tailwindcss -i src/input.css -o dist/styles.css --watch",
+    "serve": "python3 -m http.server 8000"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.0"
+  }
+}

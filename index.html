@@ -1,376 +1,122 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pinpoint Trip Viewer</title>
-    
-    <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    
-    <!-- Tailwind CSS & Font Awesome -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script> window.FontAwesomeConfig = { autoReplaceSvg: 'nest'};</script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-    
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            colors: {
-              "pinpoint-blue": "#1E90FF",
-              "pinpoint-dark-blue": "#0066CC"
-            },
-            fontFamily: {
-              sans: ["Inter", "sans-serif"]
-            }
-          }
-        }
-      };
-    </script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;500;600;700;800;900&display=swap">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#3B82F6" />
+<title>Pinpoint — Trip</title>
 
-    <style>
-        body, html {
-            margin: 0;
-            padding: 0;
-            height: 100%;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: #f0f0f0; /* A neutral background */
-        }
-        #content {
-            height: 100%;
-        }
-        #map {
-            width: 100%;
-            height: 100%;
-        }
-        .info-panel {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            z-index: 1000;
-            background: rgba(255, 255, 255, 0.85);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            padding: 16px;
-            border-radius: 13px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            max-width: 320px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            display: flex;
-            align-items: center;
-            gap: 16px;
-        }
-        .info-panel h1 {
-            margin: 0 0 4px 0;
-            font-size: 18px;
-            font-weight: 600;
-        }
-        .info-panel p {
-            margin: 0;
-            font-size: 14px;
-            color: #333;
-        }
-        
-        /* --- Pulsing Icon Styles --- */
-        .pulsing-icon {
-            width: 48px;
-            height: 48px;
-            flex-shrink: 0;
-            background: #007aff;
-            border-radius: 50%;
-            border: 3px solid white;
-            box-shadow: 0 0 8px rgba(0, 0, 0, 0.1);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            animation: pulse 2s infinite ease-in-out;
-        }
-        .pulsing-icon i {
-            color: white;
-            font-size: 20px;
-        }
-        @keyframes pulse {
-            0% {
-                transform: scale(0.95);
-                box-shadow: 0 0 0 0 rgba(0, 122, 255, 0.7);
-            }
-            70% {
-                transform: scale(1);
-                box-shadow: 0 0 0 10px rgba(0, 122, 255, 0);
-            }
-            100% {
-                transform: scale(0.95);
-                box-shadow: 0 0 0 0 rgba(0, 122, 255, 0);
-            }
-        }
-        
-        /* --- Custom Marker Styles (Apple Maps Inspired) --- */
-        .marker-pin {
-            width: 38px;
-            height: 50px;
-            position: relative;
-        }
-        .marker-pin .pin-body {
-            width: 36px;
-            height: 36px;
-            border-radius: 50% 50% 50% 0;
-            background: #007aff;
-            position: absolute;
-            transform: rotate(-45deg);
-            left: 1px;
-            top: 1px;
-            border: 2px solid white;
-            box-shadow: 0 3px 8px rgba(0,0,0,0.25);
-        }
-        .marker-pin .pin-content {
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            position: absolute;
-            left: 1px;
-            top: 1px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-        .marker-pin .pin-content-inner-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            background: #007aff;
-            border: 2.5px solid white;
-        }
-        
-        /* --- Custom Label Styles --- */
-        .map-label {
-            background-color: transparent;
-            border: none;
-            box-shadow: none;
-            font-size: 16px;
-            font-weight: 600;
-            color: #1d1d1f;
-            text-shadow: 0 0 4px white, 0 0 4px white, 0 0 4px white;
-        }
-        .leaflet-tooltip-right::before, .leaflet-tooltip-left::before {
-            content: none; /* Hide tooltip arrow */
-        }
-    </style>
+<script>
+  (function () {
+    try {
+      var saved = localStorage.getItem('pinpoint-theme');
+      var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      var dark = saved ? saved === 'dark' : prefersDark;
+      if (dark) document.documentElement.classList.add('dark');
+    } catch (_) {}
+  })();
+</script>
+
+<link rel="icon" type="image/svg+xml" href="assets/logo.svg" />
+
+<link rel="preconnect" href="https://api.fontshare.com" />
+<link rel="preconnect" href="https://cdn.fontshare.com" crossorigin />
+<link href="https://api.fontshare.com/v2/css?f[]=clash-display@500,600,700&f[]=satoshi@400,500,700&display=swap" rel="stylesheet" />
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+<link rel="stylesheet" href="dist/styles.css" />
 </head>
-<body>
-    <div id="content" class="h-full">
-        <!-- The map and route-specific UI will be created here -->
+<body class="hero-bg-pattern">
+
+<!-- Map (only shown when ?route= present) -->
+<div id="map-container" class="fixed inset-0 z-0 hidden">
+  <div id="map" class="w-full h-full"></div>
+</div>
+
+<!-- Top bar (visible on every state) -->
+<header class="fixed top-0 inset-x-0 z-[1000] flex items-center justify-between px-4 sm:px-6 pt-4 pointer-events-none">
+  <a href="https://pinpointapp.me" class="pointer-events-auto inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass-card">
+    <img src="assets/logo.svg" alt="Pinpoint" class="h-6 w-6 dark:hidden" />
+    <img src="assets/logo-white.svg" alt="Pinpoint" class="h-6 w-6 hidden dark:block" />
+    <span class="font-display font-semibold text-sm tracking-tight">Pinpoint</span>
+  </a>
+
+  <button id="theme-toggle" aria-label="Toggle dark mode"
+          class="pointer-events-auto w-10 h-10 rounded-full glass-card flex items-center justify-center text-gray-700 dark:text-gray-100 hover:scale-105 transition-transform">
+    <svg class="w-5 h-5 hidden dark:block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+      <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+    </svg>
+    <svg class="w-5 h-5 dark:hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+    </svg>
+  </button>
+</header>
+
+<!-- Trip stats info card (shown when route renders successfully) -->
+<div id="trip-card"
+     class="fixed left-1/2 -translate-x-1/2 bottom-4 sm:bottom-6 z-[1000]
+            w-[min(420px,calc(100vw-24px))]
+            glass-card rounded-2xl p-4 sm:p-5
+            flex-col gap-4 hidden">
+  <div class="flex items-center gap-3">
+    <div class="w-12 h-12 rounded-full bg-blue-500 ring-2 ring-white dark:ring-dark-700 shadow-card dark:shadow-card-dark flex items-center justify-center shrink-0">
+      <svg class="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="10" r="3"/>
+        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
+      </svg>
+    </div>
+    <div class="min-w-0 flex-1">
+      <div class="font-display font-semibold text-base leading-tight">Pinpoint Trip</div>
+      <div id="trip-distance" class="font-body text-xs text-gray-500 dark:text-gray-400 mt-0.5">—</div>
+    </div>
+  </div>
+  <a href="https://apps.apple.com/us/app/pinpoint-trip-tracker/id6749234913"
+     class="cta-pill w-full glow-blue">
+    <span>Open in Pinpoint</span>
+    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="5" y1="12" x2="19" y2="12"/>
+      <polyline points="12 5 19 12 12 19"/>
+    </svg>
+  </a>
+</div>
+
+<!-- Empty-state / no-route page (shown when ?route= is missing or invalid) -->
+<div id="empty-state"
+     class="fixed inset-0 z-[5] flex items-center justify-center p-6 hero-bg-pattern">
+  <div class="max-w-md text-center">
+    <!-- Hero glyph -->
+    <div class="relative mx-auto mb-8 w-28 h-28">
+      <div class="absolute inset-0 rounded-full bg-blue-500/10 dark:bg-blue-500/15 blur-2xl"></div>
+      <div class="absolute inset-0 rounded-full bg-blue-500/20 dark:bg-blue-500/25 animate-ping"></div>
+      <div class="relative w-full h-full rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-elevated dark:shadow-elevated-dark">
+        <div class="w-14 h-14 rounded-full bg-white dark:bg-dark-800 flex items-center justify-center">
+          <svg class="w-7 h-7 text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="10" r="3"/>
+            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
+          </svg>
+        </div>
+      </div>
     </div>
 
-    <div id="no-route-placeholder" class="hidden h-full flex flex-col items-center justify-center bg-gray-50 font-sans p-8 relative overflow-hidden">
-        <div class="absolute inset-0 bg-gradient-to-br from-blue-50 via-white to-pinpoint-blue/10 opacity-60"></div>
-        <div class="absolute top-10 left-8 w-16 h-16 bg-pinpoint-blue/20 rounded-full blur-xl animate-pulse"></div>
-        <div class="absolute top-32 right-12 w-12 h-12 bg-blue-300/30 rounded-full blur-lg animate-pulse delay-1000"></div>
-        <div class="absolute bottom-40 left-16 w-20 h-20 bg-pinpoint-blue/15 rounded-full blur-2xl animate-pulse delay-500"></div>
-        
-        <div class="mb-8 relative z-10">
-            <div class="relative">
-                <div class="w-40 h-40 flex items-center justify-center relative">
-                    <div class="absolute inset-0 bg-gradient-to-br from-pinpoint-blue/20 to-blue-300/30 rounded-full blur-lg"></div>
-                    <div class="relative z-10">
-                        <div class="w-16 h-16 bg-gradient-to-br from-pinpoint-blue to-pinpoint-dark-blue rounded-full flex items-center justify-center shadow-lg border-4 border-white">
-                            <div class="w-8 h-8 bg-white rounded-full flex items-center justify-center">
-                                <i class="fas fa-route text-pinpoint-blue text-lg"></i>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="absolute inset-0 flex items-center justify-center">
-                        <div class="w-24 h-24 border-2 border-pinpoint-blue/30 rounded-full animate-ping"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
+    <h1 id="empty-title" class="font-display font-bold text-3xl sm:text-4xl tracking-tight mb-3">Nothing to show here</h1>
+    <p id="empty-message" class="font-body text-base text-gray-600 dark:text-gray-400 leading-relaxed mb-8">
+      Trips and live shares from your friends open right here.<br/>Get Pinpoint to track and share your own.
+    </p>
 
-        <div class="text-center relative z-10">
-            <h1 class="text-3xl font-bold text-gray-800 mb-4">Nothing to show right now</h1>
-            <p class="text-gray-600 text-lg leading-relaxed mb-8">Trips and live shares from your friends open right here.<br/>Get Pinpoint to track and share your own.</p>
-            <a href="https://apps.apple.com/us/app/pinpoint-trip-tracker/id6749234913"
-               class="inline-block bg-pinpoint-blue hover:bg-pinpoint-dark-blue text-white font-bold py-3 px-8 rounded-full transition-transform transform hover:scale-105 shadow-lg">
-                <i class="fab fa-apple mr-2"></i> Download Pinpoint
-            </a>
-        </div>
-    </div>
+    <a href="https://apps.apple.com/us/app/pinpoint-trip-tracker/id6749234913"
+       class="cta-pill glow-blue">
+      <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/></svg>
+      <span>Download Pinpoint</span>
+    </a>
+  </div>
+</div>
 
-    <!-- Leaflet JS -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    
-    <script>
-        // Polyline decoding function (Google's algorithm)
-        function decodePolyline(encoded) {
-            let index = 0;
-            const len = encoded.length;
-            const coordinates = [];
-            let lat = 0;
-            let lng = 0;
-
-            while (index < len) {
-                let b;
-                let shift = 0;
-                let result = 0;
-                
-                do {
-                    b = encoded.charCodeAt(index++) - 63;
-                    result |= (b & 0x1f) << shift;
-                    shift += 5;
-                } while (b >= 0x20);
-                
-                const dlat = ((result & 1) ? ~(result >> 1) : (result >> 1));
-                lat += dlat;
-
-                shift = 0;
-                result = 0;
-                
-                do {
-                    b = encoded.charCodeAt(index++) - 63;
-                    result |= (b & 0x1f) << shift;
-                    shift += 5;
-                } while (b >= 0x20);
-                
-                const dlng = ((result & 1) ? ~(result >> 1) : (result >> 1));
-                lng += dlng;
-
-                coordinates.push([lat * 1e-5, lng * 1e-5]);
-            }
-            
-            return coordinates;
-        }
-
-        // Parse URL parameters
-        function getUrlParameter(name) {
-            const urlParams = new URLSearchParams(window.location.search);
-            return urlParams.get(name);
-        }
-
-        // Main function
-        document.addEventListener('DOMContentLoaded', function() {
-            const contentDiv = document.getElementById('content');
-            const noRoutePlaceholder = document.getElementById('no-route-placeholder');
-            const routeParam = getUrlParameter('route');
-
-            if (!routeParam) {
-                contentDiv.classList.add('hidden');
-                noRoutePlaceholder.classList.remove('hidden');
-                return;
-            }
-
-            contentDiv.classList.remove('hidden');
-            noRoutePlaceholder.classList.add('hidden');
-            contentDiv.innerHTML = `<div id="map"></div>`;
-
-            try {
-                const coordinates = decodePolyline(routeParam);
-                if (coordinates.length === 0) throw new Error('No valid coordinates found');
-
-                const map = L.map('map', { zoomControl: false });
-                
-                // Add zoom control to bottom right
-                L.control.zoom({ position: 'bottomright' }).addTo(map);
-
-                // Add tile layer (CARTO Voyager, a balanced theme)
-                L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-                }).addTo(map);
-
-                // Create a polyline with Apple Maps blue
-                const routeLine = L.polyline(coordinates, {
-                    color: '#007aff',
-                    weight: 6,
-                    opacity: 0.85
-                }).addTo(map);
-
-                // --- Custom Markers ---
-                const startIcon = L.divIcon({
-                    className: 'custom-marker',
-                    html: `<div class="marker-pin"><div class="pin-body"></div><div class="pin-content"><svg width="20" height="20" viewBox="0 0 24 24"><path fill="white" d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z" transform="rotate(270 12 12)"/></svg></div></div>`,
-                    iconSize: [38, 50],
-                    iconAnchor: [19, 50]
-                });
-
-                const endIcon = L.divIcon({
-                    className: 'custom-marker',
-                    html: `<div class="marker-pin"><div class="pin-body"></div><div class="pin-content"><div class="pin-content-inner-dot"></div></div></div>`,
-                    iconSize: [38, 50],
-                    iconAnchor: [19, 50]
-                });
-                
-                const startPoint = coordinates[0];
-                const endPoint = coordinates[coordinates.length - 1];
-
-                L.marker(startPoint, { icon: startIcon }).addTo(map)
-                    .bindTooltip("Start", { permanent: true, direction: 'right', offset: [15, -25], className: 'map-label' });
-                
-                L.marker(endPoint, { icon: endIcon }).addTo(map)
-                    .bindTooltip("End", { permanent: true, direction: 'right', offset: [15, -25], className: 'map-label' });
-
-                // Calculate bounds and fit the map
-                const bounds = routeLine.getBounds();
-                map.fitBounds(bounds, {
-                    padding: [60, 60]
-                });
-
-                // Update info panel with stats
-                const distanceKm = calculateRouteDistance(coordinates) / 1000;
-                const distanceMiles = distanceKm * 0.621371;
-                
-                const infoPanel = L.DomUtil.create('div', 'info-panel');
-                infoPanel.innerHTML = `
-                    <div class="pulsing-icon">
-                        <i class="fas fa-route"></i>
-                    </div>
-                    <div>
-                        <h1>Pinpoint Trip</h1>
-                        <p><strong>Distance:</strong> ${distanceMiles.toFixed(1)} miles (${distanceKm.toFixed(1)} km)</p>
-                    </div>
-                `;
-                contentDiv.appendChild(infoPanel);
-
-            } catch (error) {
-                console.error('Error processing route:', error);
-                contentDiv.innerHTML = `
-                    <div class="no-route">
-                        <h1>Error displaying route</h1>
-                        <p>There was a problem processing the route data.</p>
-                        <p>Error: ${error.message}</p>
-                    </div>
-                `;
-            }
-        });
-
-        // Function to calculate route distance
-        function calculateRouteDistance(coordinates) {
-            let distance = 0;
-            for (let i = 1; i < coordinates.length; i++) {
-                distance += getDistanceFromLatLonInM(
-                    coordinates[i-1][0], coordinates[i-1][1],
-                    coordinates[i][0], coordinates[i][1]
-                );
-            }
-            return distance;
-        }
-
-        // Calculate distance between two points using Haversine formula
-        function getDistanceFromLatLonInM(lat1, lon1, lat2, lon2) {
-            const R = 6371e3; // Earth's radius in meters
-            const φ1 = lat1 * Math.PI/180;
-            const φ2 = lat2 * Math.PI/180;
-            const Δφ = (lat2-lat1) * Math.PI/180;
-            const Δλ = (lon2-lon1) * Math.PI/180;
-
-            const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
-                    Math.cos(φ1) * Math.cos(φ2) *
-                    Math.sin(Δλ/2) * Math.sin(Δλ/2);
-            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-
-            return R * c;
-        }
-    </script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="js/theme-toggle.js"></script>
+<script src="js/route-viewer.js"></script>
 </body>
 </html>

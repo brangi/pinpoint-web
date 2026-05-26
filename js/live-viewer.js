@@ -200,7 +200,10 @@
   console.log('[live-viewer] env=' + cfg.env + ' broker=' + cfg.brokerUrl);
 
   // ===== Map (Leaflet)
-  var map = L.map('map', { zoomControl: true, attributionControl: false }).setView([39.5, -98.5], 4);
+  // zoomControl disabled — the buttons collided with the Pinpoint logo
+  // header at top-left, and the bottom-right is already taken by the
+  // recenter FAB. Pinch / scroll-wheel / double-click zoom still work.
+  var map = L.map('map', { zoomControl: false, attributionControl: false }).setView([39.5, -98.5], 4);
 
   L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
     subdomains: 'abcd',

@@ -117,13 +117,26 @@
     pill.classList.remove('hidden');
   }
 
-  // ===== Countdown (refreshed every 30s)
+  // ===== Countdown (refreshed every 1s — tight loop so we catch expiry
+  // and force-close the viewer without relying on an `ended` meta from
+  // the sender. The sender may be suspended past expiry and unable to
+  // publish the ended-meta, so we must self-enforce the agreed end time
+  // here to avoid leaking location updates past it.)
   var countdownTimer = null;
-  function renderCountdown(expiresAtMs) {
+  var expiresAtMs = 0;  // module-scope so the location handler can gate too
+  function renderCountdown(newExpiresAtMs) {
+    expiresAtMs = newExpiresAtMs;
     var el = $('countdown');
     function tick() {
       var remainMs = expiresAtMs - Date.now();
-      if (remainMs <= 0) { el.textContent = 'Expired'; return; }
+      if (remainMs <= 0) {
+        el.textContent = 'Expired';
+        // Client-side expiry enforcement: do not wait for the sender to
+        // publish ended-meta — they may be suspended. Trigger the same
+        // ended flow (unsubscribe, redirect) on our own clock.
+        markEnded();
+        return;
+      }
       var totalMin = Math.floor(remainMs / 60000);
       var h = Math.floor(totalMin / 60);
       var m = totalMin % 60;
@@ -131,7 +144,7 @@
     }
     if (countdownTimer) clearInterval(countdownTimer);
     tick();
-    countdownTimer = setInterval(tick, 30_000);
+    countdownTimer = setInterval(tick, 1_000);
   }
 
   // ===== Freshness ticker (refreshed every 1s)
@@ -329,6 +342,13 @@
         renderCountdown(data.expiresAt * 1000);
       }
     } else if (suffix === 'location' && data) {
+      // Hard-reject any location update arriving past the agreed expiry.
+      // 5s grace absorbs clock skew between sharer/broker/viewer. This is
+      // the second layer of defense behind the countdown's self-end above.
+      if (expiresAtMs > 0 && Date.now() > expiresAtMs + 5_000) {
+        markEnded();
+        return;
+      }
       if (typeof data.lat === 'number' && typeof data.lng === 'number') {
         placeOrMoveMarker(data.lat, data.lng);
         // Drop the "Connecting…" banner once we have real data — recipient

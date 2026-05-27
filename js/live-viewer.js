@@ -13,6 +13,55 @@
   var RECONNECT_PERIOD_MS = 3_000;
   var ENDED_DISMISS_MS = 5_000;
 
+  // ===== Module-scope state shared between the freshness/countdown
+  //       tickers (declared up here near the top of the IIFE) and the
+  //       MQTT setup code inside startWithCredentials (which assigns to
+  //       them). Hoisted because helpers like startFreshnessTicker()
+  //       capture these via closure, and they'd be `undefined` inside
+  //       the helper if declared only inside startWithCredentials.
+  var marker = null;
+  var lastLocationAt = 0;
+  var staleTimer = null;
+  var ended = false;
+  var followSharer = true;
+  var userPanned = false;
+  var client = null; // MQTT client, assigned inside startWithCredentials
+
+  // ===== Lifecycle helpers (live in outer scope so renderCountdown's tick —
+  //       also outer-scope — can call markEnded() on self-enforced expiry).
+  function markStale() {
+    if (ended) return;
+    if (marker) {
+      var el = marker.getElement();
+      if (el) el.classList.add('stale');
+    }
+    setStatus('Stale', 'stale');
+  }
+
+  function markEnded() {
+    ended = true;
+    if (marker) {
+      var el = marker.getElement();
+      if (el) el.classList.add('ended');
+    }
+    if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
+    if (freshnessTimer) { clearInterval(freshnessTimer); freshnessTimer = null; }
+    var cd = $('countdown'); if (cd) cd.textContent = '';
+    var fr = $('freshness-caption');
+    if (fr) {
+      fr.textContent = 'Share ended';
+      fr.className = 'font-body text-xs text-gray-500 dark:text-gray-400 mt-0.5';
+    }
+    setStatus('Share ended', 'ended');
+    try { if (client) client.end(true); } catch (_) {}
+    setTimeout(function () { window.location.href = 'https://pinpointing.me/'; }, ENDED_DISMISS_MS);
+  }
+
+  function armStaleTimer() {
+    if (staleTimer) clearTimeout(staleTimer);
+    staleTimer = setTimeout(markStale, STALE_MS);
+  }
+
   // ===== DOM helpers
   function $(id) { return document.getElementById(id); }
 
@@ -265,12 +314,16 @@
     html: '<div class="pin-core"></div>',
   });
 
-  var marker = null;
-  var lastLocationAt = 0;
-  var staleTimer = null;
-  var ended = false;
-  var followSharer = true;  // when true, map auto-pans to new locations
-  var userPanned = false;
+  // marker / lastLocationAt / staleTimer / ended / followSharer / userPanned
+  // are hoisted to the IIFE scope at the top of the file so the freshness
+  // ticker (defined outside startWithCredentials) can read them. Reset
+  // here to clean slate per share.
+  marker = null;
+  lastLocationAt = 0;
+  staleTimer = null;
+  ended = false;
+  followSharer = true;
+  userPanned = false;
 
   function placeOrMoveMarker(lat, lng) {
     if (!marker) {
@@ -288,35 +341,10 @@
     armStaleTimer();
   }
 
-  function markStale() {
-    if (ended) return;
-    if (marker) {
-      var el = marker.getElement();
-      if (el) el.classList.add('stale');
-    }
-    setStatus('Stale', 'stale');
-  }
-
-  function markEnded() {
-    ended = true;
-    if (marker) {
-      var el = marker.getElement();
-      if (el) el.classList.add('ended');
-    }
-    if (countdownTimer)   { clearInterval(countdownTimer);   countdownTimer = null; }
-    if (freshnessTimer)   { clearInterval(freshnessTimer);   freshnessTimer = null; }
-    $('countdown').textContent = '';
-    $('freshness-caption').textContent = 'Share ended';
-    $('freshness-caption').className = 'font-body text-xs text-gray-500 dark:text-gray-400 mt-0.5';
-    setStatus('Share ended', 'ended');
-    try { client.end(true); } catch (_) {}
-    setTimeout(function () { window.location.href = 'https://pinpointing.me/'; }, ENDED_DISMISS_MS);
-  }
-
-  function armStaleTimer() {
-    if (staleTimer) clearTimeout(staleTimer);
-    staleTimer = setTimeout(markStale, STALE_MS);
-  }
+  // markStale / markEnded / armStaleTimer are hoisted into the outer IIFE
+  // scope below (right after the var declarations) so renderCountdown can
+  // call markEnded() on client-side expiry — that ticker is defined
+  // outside startWithCredentials and would otherwise see them as undefined.
 
   // ===== Recenter FAB
   var recenterFab = $('recenter-fab');
@@ -339,7 +367,7 @@
   setStatus('Connecting…', 'live');
   startFreshnessTicker();
 
-  var client = mqtt.connect(cfg.brokerUrl, {
+  client = mqtt.connect(cfg.brokerUrl, {
     username: cfg.username,
     password: cfg.password,
     keepalive: 30,

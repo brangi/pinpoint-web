@@ -180,24 +180,66 @@
     freshnessTimer = setInterval(tick, 1000);
   }
 
-  // ===== URL parsing
+  // ===== URL parsing — accepts /l/<code> (via 404.html redirect) or
+  //       live.html?c=<code> directly. The 6-char code resolves to
+  //       (ownerUid, token) via Firestore live_share_codes/{code}.
   var params = new URLSearchParams(window.location.search);
-  var uid = (params.get('u') || '').trim();
-  var token = (params.get('t') || '').trim();
+  var code = (params.get('c') || '').trim();
 
   bindThemeToggle();
 
-  if (!uid || !token || uid.length > 128 || token.length > 128) {
+  if (!code || code.length > 32 || !/^[A-Za-z0-9]+$/.test(code)) {
     showInvalid();
     return;
   }
 
-  // ===== Open-in-app deep link
-  $('open-in-app').href = 'pinpointapp://live?u=' + encodeURIComponent(uid) + '&t=' + encodeURIComponent(token);
-
-  // ===== Env + broker config
+  // ===== Env + broker config (env=dev still accepted for dev builds)
   var cfg = window.PinpointEnv.pick(params);
   console.log('[live-viewer] env=' + cfg.env + ' broker=' + cfg.brokerUrl);
+
+  // ===== Resolve shortcode via Firestore, then proceed with the
+  //       existing setup once we have the real (uid, token) pair.
+  if (typeof firebase === 'undefined' || !cfg.firebase || !cfg.firebase.apiKey) {
+    console.error('[live-viewer] Firebase SDK or env firebase config missing');
+    showInvalid();
+    return;
+  }
+  var fbApp = firebase.initializeApp(cfg.firebase);
+  var firestore = firebase.firestore(fbApp);
+
+  firestore
+    .collection('live_share_codes')
+    .doc(code)
+    .get()
+    .then(function (snap) {
+      if (!snap.exists) {
+        console.warn('[live-viewer] shortcode not found: ' + code);
+        showInvalid();
+        return;
+      }
+      var data = snap.data() || {};
+      var resolvedUid = (data.ownerUid || '').toString().trim();
+      var resolvedToken = (data.token || '').toString().trim();
+      if (!resolvedUid || !resolvedToken || resolvedUid.length > 128 || resolvedToken.length > 128) {
+        console.warn('[live-viewer] resolved doc missing/invalid fields', data);
+        showInvalid();
+        return;
+      }
+      // Hand off to the legacy startWithCredentials path with the
+      // resolved pair — keeps the MQTT/render code below unchanged.
+      startWithCredentials(resolvedUid, resolvedToken, cfg);
+    })
+    .catch(function (err) {
+      console.error('[live-viewer] shortcode resolve failed', err);
+      showInvalid();
+    });
+
+  // The rest of the legacy setup is wrapped in startWithCredentials so it
+  // runs only AFTER the shortcode resolves. Defining it inline below.
+  function startWithCredentials(uid, token, cfg) {
+
+  // ===== Open-in-app deep link (uses shortcode, NOT uid+token)
+  $('open-in-app').href = 'pinpointapp://live?c=' + encodeURIComponent(code);
 
   // ===== Map (Leaflet)
   // zoomControl disabled — the buttons collided with the Pinpoint logo
@@ -361,4 +403,6 @@
       }
     }
   });
+
+  } // end startWithCredentials
 })();

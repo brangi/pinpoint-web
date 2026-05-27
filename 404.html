@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Pinpoint — Redirecting…</title>
+<meta name="theme-color" content="#3B82F6" />
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+         background: #0a0a0a; color: #e5e7eb; display: flex; align-items: center;
+         justify-content: center; min-height: 100vh; margin: 0; }
+  .box { max-width: 28rem; text-align: center; padding: 2rem; }
+  h1 { font-size: 1.5rem; margin: 0 0 .5rem; }
+  p  { color: #9ca3af; line-height: 1.5; margin: 0; }
+  a  { color: #3b82f6; }
+</style>
+<script>
+  // GH Pages SPA-style routing: when the user hits `/l/<code>`, GH Pages
+  // serves this 404.html (no static file at that path). We detect the
+  // `/l/<code>` pattern and redirect to the real viewer at
+  // `live.html?c=<code>`, preserving any incoming env query param.
+  // Anything that doesn't match the pattern falls through to a real
+  // 404 message rendered below.
+  (function () {
+    var path = window.location.pathname || "";
+    var m = path.match(/^\/l\/([A-Za-z0-9]+)\/?$/);
+    if (m) {
+      var code = m[1];
+      var search = window.location.search || "";
+      // Preserve env (and any future flags) by appending after `?c=<code>`.
+      var sep = "?c=" + encodeURIComponent(code);
+      if (search.length > 1) {
+        // strip leading "?" and join
+        sep += "&" + search.slice(1);
+      }
+      window.location.replace("/live.html" + sep);
+    }
+  })();
+</script>
+</head>
+<body>
+  <div class="box">
+    <h1>404 — Not found</h1>
+    <p>The page you're looking for doesn't exist. <br/>
+       Visit <a href="/">pinpointing.me</a> to learn about Pinpoint.</p>
+  </div>
+</body>
+</html>

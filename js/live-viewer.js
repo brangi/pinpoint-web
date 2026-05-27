@@ -204,9 +204,15 @@
     showInvalid();
     return;
   }
-  var fbApp = firebase.initializeApp(cfg.firebase);
-  var firestore = firebase.firestore(fbApp);
+  // Use a named app so we don't collide with any other Firebase init on
+  // the page. The compat firestore() accessor reads from the default app,
+  // so we explicitly grab firestore() off our named app.
+  if (!firebase.apps.length) {
+    firebase.initializeApp(cfg.firebase);
+  }
+  var firestore = firebase.firestore();
 
+  console.log('[live-viewer] resolving shortcode', code);
   firestore
     .collection('live_share_codes')
     .doc(code)

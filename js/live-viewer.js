@@ -13,6 +13,20 @@
   var RECONNECT_PERIOD_MS = 3_000;
   var ENDED_DISMISS_MS = 5_000;
 
+  // ===== Debug-gated logging. Production viewers must not print share data
+  //       (shortcode, resolved uid/token, sharer name/photo/battery) to the
+  //       console where anyone with DevTools open can read it. Logging is on
+  //       only for dev builds or when ?debug=1 is explicitly passed.
+  var DEBUG = false;
+  try {
+    var _dbgParams = new URLSearchParams(window.location.search);
+    DEBUG = _dbgParams.get('debug') === '1' ||
+            (_dbgParams.get('env') || '').toLowerCase() === 'dev';
+  } catch (_) {}
+  function dlog() { if (DEBUG) try { console.log.apply(console, arguments); } catch (_) {} }
+  function dwarn() { if (DEBUG) try { console.warn.apply(console, arguments); } catch (_) {} }
+  function derr() { if (DEBUG) try { console.error.apply(console, arguments); } catch (_) {} }
+
   // ===== Module-scope state shared between the freshness/countdown
   //       tickers (declared up here near the top of the IIFE) and the
   //       MQTT setup code inside startWithCredentials (which assigns to
@@ -244,54 +258,54 @@
 
   // ===== Env + broker config (env=dev still accepted for dev builds)
   var cfg = window.PinpointEnv.pick(params);
-  console.log('[live-viewer] env=' + cfg.env + ' broker=' + cfg.brokerUrl);
+  dlog('[live-viewer] env=' + cfg.env + ' broker=' + cfg.brokerUrl);
 
-  // ===== Resolve shortcode via Firestore, then proceed with the
-  //       existing setup once we have the real (uid, token) pair.
-  if (typeof firebase === 'undefined' || !cfg.firebase || !cfg.firebase.apiKey) {
-    console.error('[live-viewer] Firebase SDK or env firebase config missing');
+  // ===== Resolve the shortcode server-side. The resolveLiveShareCode Cloud
+  //       Function reads Firestore, checks expiry, and returns the (uid,
+  //       token) pair plus a short-lived MQTT JWT scoped subscribe-only to
+  //       this one share's topic. No shared broker password ships to the
+  //       browser, and live_share_codes is no longer client-readable.
+  if (!cfg.resolveUrl) {
+    derr('[live-viewer] missing resolveUrl in env config');
     showInvalid();
     return;
   }
-  // Use a named app so we don't collide with any other Firebase init on
-  // the page. The compat firestore() accessor reads from the default app,
-  // so we explicitly grab firestore() off our named app.
-  if (!firebase.apps.length) {
-    firebase.initializeApp(cfg.firebase);
-  }
-  var firestore = firebase.firestore();
 
-  console.log('[live-viewer] resolving shortcode', code);
-  firestore
-    .collection('live_share_codes')
-    .doc(code)
-    .get()
-    .then(function (snap) {
-      if (!snap.exists) {
-        console.warn('[live-viewer] shortcode not found: ' + code);
+  dlog('[live-viewer] resolving shortcode', code);
+  fetch(cfg.resolveUrl, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({code: code}),
+  })
+    .then(function (resp) {
+      if (!resp.ok) {
+        dwarn('[live-viewer] resolve failed: HTTP ' + resp.status);
         showInvalid();
-        return;
+        return null;
       }
-      var data = snap.data() || {};
-      var resolvedUid = (data.ownerUid || '').toString().trim();
+      return resp.json();
+    })
+    .then(function (data) {
+      if (!data) return;
+      var resolvedUid = (data.uid || '').toString().trim();
       var resolvedToken = (data.token || '').toString().trim();
-      if (!resolvedUid || !resolvedToken || resolvedUid.length > 128 || resolvedToken.length > 128) {
-        console.warn('[live-viewer] resolved doc missing/invalid fields', data);
+      var jwt = (data.jwt || '').toString();
+      if (!resolvedUid || !resolvedToken || !jwt ||
+          resolvedUid.length > 128 || resolvedToken.length > 128) {
+        dwarn('[live-viewer] resolve response missing fields');
         showInvalid();
         return;
       }
-      // Hand off to the legacy startWithCredentials path with the
-      // resolved pair — keeps the MQTT/render code below unchanged.
-      startWithCredentials(resolvedUid, resolvedToken, cfg);
+      startWithCredentials(resolvedUid, resolvedToken, jwt, cfg);
     })
     .catch(function (err) {
-      console.error('[live-viewer] shortcode resolve failed', err);
+      derr('[live-viewer] shortcode resolve failed', err);
       showInvalid();
     });
 
   // The rest of the legacy setup is wrapped in startWithCredentials so it
   // runs only AFTER the shortcode resolves. Defining it inline below.
-  function startWithCredentials(uid, token, cfg) {
+  function startWithCredentials(uid, token, jwt, cfg) {
 
   // ===== Open-in-app deep link (uses shortcode, NOT uid+token)
   $('open-in-app').href = 'pinpointapp://live?c=' + encodeURIComponent(code);
@@ -367,9 +381,12 @@
   setStatus('Connecting…', 'live');
   startFreshnessTicker();
 
+  // Authenticate with the per-share JWT (MQTT password field). EMQX verifies
+  // the HS256 signature + exp and enforces the token's acl claim, which allows
+  // subscribing only to this share's topic. The username is informational.
   client = mqtt.connect(cfg.brokerUrl, {
-    username: cfg.username,
-    password: cfg.password,
+    username: 'viewer-' + uid,
+    password: jwt,
     keepalive: 30,
     clean: true,
     reconnectPeriod: RECONNECT_PERIOD_MS,
@@ -379,10 +396,10 @@
   var topicFilter = TOPIC_PREFIX + '/' + uid + '/' + token + '/+';
 
   client.on('connect', function () {
-    console.log('[live-viewer] connected');
+    dlog('[live-viewer] connected');
     client.subscribe(topicFilter, { qos: 0 }, function (err) {
       if (err) {
-        console.error('[live-viewer] subscribe failed', err);
+        derr('[live-viewer] subscribe failed', err);
         setStatus("Couldn't open this share", 'error');
       } else {
         setStatus('Live', 'live');
@@ -391,12 +408,12 @@
   });
 
   client.on('error', function (err) {
-    console.error('[live-viewer] error', err);
+    derr('[live-viewer] error', err);
     setStatus('Connection error', 'error');
   });
 
   client.on('close', function () {
-    if (!ended) console.log('[live-viewer] connection closed');
+    if (!ended) dlog('[live-viewer] connection closed');
   });
 
   client.on('message', function (topic, payload) {
@@ -406,11 +423,11 @@
     try {
       data = payload.length ? JSON.parse(new TextDecoder().decode(payload)) : null;
     } catch (e) {
-      console.warn('[live-viewer] non-JSON message on', topic);
+      dwarn('[live-viewer] non-JSON message on', topic);
       return;
     }
     if (suffix === 'meta' && data) {
-      console.log('[live-viewer] meta', data);
+      dlog('[live-viewer] meta', data);
       if (data.status === 'ended') {
         renderMeta(data);
         markEnded();

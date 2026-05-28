@@ -307,8 +307,38 @@
   // runs only AFTER the shortcode resolves. Defining it inline below.
   function startWithCredentials(uid, token, jwt, cfg) {
 
-  // ===== Open-in-app deep link (uses shortcode, NOT uid+token)
-  $('open-in-app').href = 'pinpointapp://live?c=' + encodeURIComponent(code);
+  // ===== "Open in Pinpoint" — platform-aware.
+  //  - iOS: try the app via the pinpointapp:// deep link. If the app doesn't
+  //    take over within a moment (not installed), fall back to the App Store.
+  //  - Desktop / non-iOS: no app is possible, so go straight to the App Store
+  //    (new tab, leaving the live map open).
+  var APP_STORE_URL = 'https://apps.apple.com/us/app/pinpoint-trip-tracker/id6749234913';
+  var openBtn = $('open-in-app');
+  var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+              (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+  if (isIOS) {
+    var deepLink = 'pinpointapp://live?c=' + encodeURIComponent(code);
+    openBtn.href = deepLink;
+    openBtn.addEventListener('click', function () {
+      // The href fires the deep link. If the app opens, iOS backgrounds this
+      // page (visibility hidden) and we cancel. If we're still visible after a
+      // beat, the app isn't installed — send them to the App Store.
+      var fallback = setTimeout(function () {
+        if (!document.hidden) window.location.href = APP_STORE_URL;
+      }, 1500);
+      document.addEventListener('visibilitychange', function onHide() {
+        if (document.hidden) {
+          clearTimeout(fallback);
+          document.removeEventListener('visibilitychange', onHide);
+        }
+      });
+    });
+  } else {
+    openBtn.href = APP_STORE_URL;
+    openBtn.target = '_blank';
+    openBtn.rel = 'noopener';
+  }
 
   // ===== Map (Leaflet)
   // zoomControl disabled — the buttons collided with the Pinpoint logo

@@ -40,6 +40,10 @@
   var followSharer = true;
   var userPanned = false;
   var client = null; // MQTT client, assigned inside startWithCredentials
+  // Latest sharer avatar (from meta). Meta and the first location can arrive
+  // in either order, so we stash this and paint the marker avatar whenever
+  // either side is ready (see updateMarkerAvatar).
+  var latestAvatar = { photoURL: null, initial: '?' };
 
   // ===== Lifecycle helpers (live in outer scope so renderCountdown's tick —
   //       also outer-scope — can call markEnded() on self-enforced expiry).
@@ -74,6 +78,37 @@
   function armStaleTimer() {
     if (staleTimer) clearTimeout(staleTimer);
     staleTimer = setTimeout(markStale, STALE_MS);
+  }
+
+  // Paint the sharer's avatar (photo, else initial) into the live marker.
+  // Idempotent and order-independent: called both when meta arrives and when
+  // the marker is first created, so whichever lands last fills it in. Updates
+  // the marker element's DOM directly (no icon recreation, no flicker).
+  function updateMarkerAvatar() {
+    if (!marker) return;
+    var el = marker.getElement();
+    if (!el) return;
+    var av = el.querySelector('.pin-avatar');
+    if (!av) return;
+    var initialEl = av.querySelector('.pin-initial');
+    var photoEl = av.querySelector('.pin-photo');
+    if (latestAvatar.photoURL) {
+      if (!photoEl) {
+        photoEl = document.createElement('img');
+        photoEl.className = 'pin-photo';
+        photoEl.onerror = function () {
+          // Photo broke (404/CORS) — drop it, fall back to the initial.
+          if (photoEl && photoEl.parentNode) photoEl.parentNode.removeChild(photoEl);
+          if (initialEl) initialEl.style.display = '';
+        };
+        av.insertBefore(photoEl, av.firstChild);
+      }
+      photoEl.src = latestAvatar.photoURL;
+      if (initialEl) initialEl.style.display = 'none';
+    } else if (initialEl) {
+      initialEl.textContent = (latestAvatar.initial || '?').toUpperCase();
+      initialEl.style.display = '';
+    }
   }
 
   // ===== DOM helpers
@@ -142,6 +177,12 @@
     }
 
     renderBattery(meta.battery, meta.batteryState);
+
+    // Feed the live marker avatar too (photo, else initial).
+    latestAvatar.photoURL = meta.sharerPhotoURL || null;
+    latestAvatar.initial = (meta.sharerInitial ||
+      (meta.sharerName ? meta.sharerName.charAt(0) : '?'));
+    updateMarkerAvatar();
 
     showCard();
   }
@@ -353,9 +394,10 @@
 
   var pinIcon = L.divIcon({
     className: 'live-pin',
-    iconSize: [36, 36],
-    iconAnchor: [18, 18],
-    html: '<div class="pin-core"></div>',
+    iconSize: [52, 60],
+    iconAnchor: [26, 58], // tip of the bottom pointer = exact location
+    html: '<div class="pin-pointer"></div>' +
+          '<div class="pin-avatar"><span class="pin-initial"></span></div>',
   });
 
   // marker / lastLocationAt / staleTimer / ended / followSharer / userPanned
@@ -373,6 +415,7 @@
     if (!marker) {
       marker = L.marker([lat, lng], { icon: pinIcon }).addTo(map);
       map.setView([lat, lng], 15);
+      updateMarkerAvatar();
     } else {
       marker.setLatLng([lat, lng]);
       if (followSharer && !userPanned) {

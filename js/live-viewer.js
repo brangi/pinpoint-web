@@ -40,6 +40,7 @@
   var followSharer = true;
   var userPanned = false;
   var client = null; // MQTT client, assigned inside startWithCredentials
+  var moveRaf = null; // requestAnimationFrame id for the marker glide tween
   // Latest sharer avatar (from meta). Meta and the first location can arrive
   // in either order, so we stash this and paint the marker avatar whenever
   // either side is ready (see updateMarkerAvatar).
@@ -58,6 +59,7 @@
 
   function markEnded() {
     ended = true;
+    if (moveRaf) { cancelAnimationFrame(moveRaf); moveRaf = null; }
     if (marker) {
       var el = marker.getElement();
       if (el) el.classList.add('ended');
@@ -404,6 +406,7 @@
   // are hoisted to the IIFE scope at the top of the file so the freshness
   // ticker (defined outside startWithCredentials) can read them. Reset
   // here to clean slate per share.
+  if (moveRaf) { cancelAnimationFrame(moveRaf); moveRaf = null; }
   marker = null;
   lastLocationAt = 0;
   staleTimer = null;
@@ -411,13 +414,51 @@
   followSharer = true;
   userPanned = false;
 
+  // Great-circle distance in meters (snap-vs-glide threshold helper).
+  function haversineM(aLat, aLng, bLat, bLng) {
+    var R = 6371000;
+    var dLat = (bLat - aLat) * Math.PI / 180;
+    var dLng = (bLng - aLng) * Math.PI / 180;
+    var s = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(aLat * Math.PI / 180) * Math.cos(bLat * Math.PI / 180) *
+            Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    return 2 * R * Math.asin(Math.min(1, Math.sqrt(s)));
+  }
+
+  // Glide the marker from its current position to (lat,lng), interpolating over
+  // ~the gap since the last update (clamped 0.3–4s, linear) so it moves
+  // continuously instead of teleporting. Snaps on a big jump (>500m) or a long
+  // gap (>35s). Render-only — nothing about the data changes. Reads
+  // lastLocationAt BEFORE the caller refreshes it, so the gap is the true
+  // inter-arrival interval.
+  function glideMarkerTo(lat, lng) {
+    if (moveRaf) { cancelAnimationFrame(moveRaf); moveRaf = null; }
+    var fromLL = marker.getLatLng();
+    var jump = haversineM(fromLL.lat, fromLL.lng, lat, lng);
+    var gapMs = lastLocationAt ? (Date.now() - lastLocationAt) : Infinity;
+
+    if (!isFinite(gapMs) || gapMs > 35000 || jump > 500) {
+      marker.setLatLng([lat, lng]);
+      return;
+    }
+
+    var dur = Math.min(Math.max(gapMs, 300), 4000);
+    var fromLat = fromLL.lat, fromLng = fromLL.lng, start = performance.now();
+    function frame(now) {
+      var k = Math.min(1, (now - start) / dur);
+      marker.setLatLng([fromLat + (lat - fromLat) * k, fromLng + (lng - fromLng) * k]);
+      moveRaf = k < 1 ? requestAnimationFrame(frame) : null;
+    }
+    moveRaf = requestAnimationFrame(frame);
+  }
+
   function placeOrMoveMarker(lat, lng) {
     if (!marker) {
       marker = L.marker([lat, lng], { icon: pinIcon }).addTo(map);
       map.setView([lat, lng], 15);
       updateMarkerAvatar();
     } else {
-      marker.setLatLng([lat, lng]);
+      glideMarkerTo(lat, lng);
       if (followSharer && !userPanned) {
         map.panTo([lat, lng], { animate: true, duration: 0.4 });
       }

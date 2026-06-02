@@ -364,18 +364,28 @@
     var deepLink = 'pinpointapp://live?c=' + encodeURIComponent(code);
     openBtn.href = deepLink;
     openBtn.addEventListener('click', function () {
-      // The href fires the deep link. If the app opens, iOS backgrounds this
-      // page (visibility hidden) and we cancel. If we're still visible after a
-      // beat, the app isn't installed — send them to the App Store.
+      // The href fires the deep link. Cancel the App Store fallback the moment
+      // anything indicates the launch is underway:
+      //   - blur: the "Open in Pinpoint?" system dialog stole focus (app installed)
+      //   - pagehide / visibility hidden: the app actually took over
+      // Only if NONE of those fire (app not installed → no dialog) does the
+      // fallback run and send them to the App Store. This prevents the
+      // double-open where both the app and the App Store launched.
+      var left = false;
+      function cancel() {
+        left = true;
+        clearTimeout(fallback);
+        document.removeEventListener('visibilitychange', onVis);
+        window.removeEventListener('pagehide', cancel);
+        window.removeEventListener('blur', cancel);
+      }
+      function onVis() { if (document.hidden) cancel(); }
+      document.addEventListener('visibilitychange', onVis);
+      window.addEventListener('pagehide', cancel);
+      window.addEventListener('blur', cancel);
       var fallback = setTimeout(function () {
-        if (!document.hidden) window.location.href = APP_STORE_URL;
-      }, 1500);
-      document.addEventListener('visibilitychange', function onHide() {
-        if (document.hidden) {
-          clearTimeout(fallback);
-          document.removeEventListener('visibilitychange', onHide);
-        }
-      });
+        if (!left && !document.hidden) window.location.href = APP_STORE_URL;
+      }, 2000);
     });
   } else {
     openBtn.href = APP_STORE_URL;

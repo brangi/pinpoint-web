@@ -1,0 +1,15 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.pinpoint.android",
+      "sha256_cert_fingerprints": [
+        "68:FE:51:58:CD:00:A3:3C:7D:C7:39:9A:D5:82:04:29:52:DD:39:89:3A:B8:F0:D7:DA:01:F5:5C:1E:DC:95:5F",
+        "E9:58:E3:26:17:77:52:BF:9B:DF:DE:F6:75:22:C3:09:D4:92:2B:B7:5B:03:AC:9B:6C:2F:88:11:86:56:8F:AD"
+      ]
+    }
+  }
+]

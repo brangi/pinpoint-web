@@ -82,10 +82,13 @@
     var map = L.map('map', { zoomControl: false, attributionControl: false });
     L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-      subdomains: 'abcd',
-      maxZoom: 20,
+    // See live-viewer.js — CARTO's free basemaps became a 14-day trial on 2026-08-27.
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 18,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     }).addTo(map);
+
+    L.control.attribution({ position: 'bottomleft', prefix: false }).addTo(map);
 
     // Polyline — brand blue with subtle outer halo for legibility on light tiles
     L.polyline(coordinates, {

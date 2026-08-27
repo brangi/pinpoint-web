@@ -250,9 +250,11 @@
   content: none;
 }
 
-/* Dark mode tweak for CartoDB Voyager — keep the look soft, not harsh */
+/* Dark mode tint for OpenStreetMap standard tiles. OSM is more saturated than
+   the CARTO Voyager style this replaced, so saturation is pulled down harder
+   before the inversion or the result reads as garish rather than dark. */
 :root.dark .leaflet-tile-pane {
-  filter: brightness(0.7) saturate(0.85) hue-rotate(180deg) invert(0.92);
+  filter: brightness(0.75) saturate(0.4) hue-rotate(180deg) invert(0.94);
 }
 
 /* Hide Leaflet zoom controls' light/dark mismatch on dark mode */

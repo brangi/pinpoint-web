@@ -399,10 +399,18 @@
   // recenter FAB. Pinch / scroll-wheel / double-click zoom still work.
   var map = L.map('map', { zoomControl: false, attributionControl: false }).setView([39.5, -98.5], 4);
 
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-    subdomains: 'abcd',
-    maxZoom: 20,
+  // OpenStreetMap standard tiles. Moved off CARTO 2026-08-27 when their free
+  // basemaps began stamping "API KEY REQUIRED" across every tile — what remained
+  // was a 14-day trial, not a free tier. OSM needs no key and cannot expire.
+  // maxZoom 18 (was 20) keeps tile requests down; OSM's own ceiling is 19.
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 18,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
   }).addTo(map);
+
+  // Attribution is required by OSM's terms. Bottom-left, since the recenter FAB
+  // owns the bottom-right corner.
+  L.control.attribution({ position: 'bottomleft', prefix: false }).addTo(map);
 
   var pinIcon = L.divIcon({
     className: 'live-pin',

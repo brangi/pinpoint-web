@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Pinpoint Squad Invite</title>
+<meta name="description" content="You've been invited to a Pinpoint squad." />
+<meta name="robots" content="noindex" />
+<meta name="theme-color" content="#0a0a0a" />
+<link rel="icon" type="image/svg+xml" href="/assets/logo.svg" />
+<link rel="preconnect" href="https://api.fontshare.com" />
+<link rel="preconnect" href="https://cdn.fontshare.com" crossorigin />
+<link href="https://api.fontshare.com/v2/css?f[]=clash-display@600,700&f[]=satoshi@400,500,700&display=swap" rel="stylesheet" />
+<style>
+  :root { --bg: #0a0a0a; --card: #141416; --text: #f3f4f6; --muted: #9ca3af; --blue: #3b82f6; --green: #34c759; --line: rgba(255,255,255,.08); }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: radial-gradient(1200px 600px at 50% -10%, rgba(52,199,89,.18), transparent 60%), var(--bg);
+         color: var(--text); font-family: Satoshi, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+         display: flex; align-items: center; justify-content: center; padding: 24px 16px; }
+  .card { width: 100%; max-width: 420px; background: var(--card); border: 1px solid var(--line); border-radius: 24px; padding: 28px 24px; text-align: center; }
+  .brand { display: inline-flex; align-items: center; gap: 8px; font-family: "Clash Display", sans-serif; font-weight: 600; color: var(--muted); font-size: 14px; }
+  .brand img { width: 22px; height: 22px; }
+  .orbit { position: relative; width: 96px; height: 96px; margin: 24px auto 16px; }
+  .ring { position: absolute; inset: 8px; border: 1.5px dashed rgba(255,255,255,.25); border-radius: 50%; }
+  .pin { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 22px; }
+  .spin { position: absolute; inset: 0; animation: spin 14s linear infinite; }
+  .dot { position: absolute; width: 26px; height: 26px; border-radius: 50%; border: 2px solid #fff; color: #fff; font: 700 11px/22px Satoshi, sans-serif; }
+  .d1 { background: #ff8c33; top: -2px; left: 35px; } .d2 { background: #f25a8c; bottom: 10px; left: 2px; } .d3 { background: #1ab8b3; bottom: 10px; right: 2px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .spin { animation: none; } }
+  h1 { font-family: "Clash Display", sans-serif; font-weight: 600; font-size: 26px; line-height: 1.2; margin: 0 0 8px; }
+  p { color: var(--muted); line-height: 1.5; margin: 0 0 20px; font-size: 15px; }
+  .btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 15px 16px; border-radius: 14px;
+         font-weight: 700; font-size: 16px; text-decoration: none; margin-top: 10px; }
+  .primary { background: var(--green); color: #fff; }
+  .secondary { background: rgba(255,255,255,.06); color: var(--text); border: 1px solid var(--line); }
+  .steps { text-align: left; margin: 22px 0 0; padding: 16px; border-radius: 14px; background: rgba(255,255,255,.03); border: 1px solid var(--line); }
+  .steps div { display: flex; gap: 10px; color: var(--muted); font-size: 14px; line-height: 1.45; }
+  .steps div + div { margin-top: 10px; }
+  .steps b { color: var(--text); min-width: 18px; }
+  .hidden { display: none; }
+  .error h1 { font-size: 22px; }
+</style>
+</head>
+<body>
+  <main class="card" id="invite">
+    <div class="brand"><img src="/assets/logo-white.svg" alt="" />Pinpoint</div>
+    <div class="orbit" aria-hidden="true">
+      <div class="ring"></div>
+      <div class="pin">&#10148;</div>
+      <div class="spin"><span class="dot d1">M</span><span class="dot d2">S</span><span class="dot d3">L</span></div>
+    </div>
+    <h1>You've been invited to a Pinpoint squad</h1>
+    <p>Squads let family see each other on the map, live. Open this invite in the Pinpoint app to ask to join. The person who invited you approves it.</p>
+    <a class="btn primary" id="open" href="#">Open invite in Pinpoint</a>
+    <a class="btn secondary" id="ios" href="https://apps.apple.com/app/id6749234913">Get Pinpoint on the App Store</a>
+    <a class="btn secondary" id="android" href="https://play.google.com/store/apps/details?id=com.pinpoint.android">Get Pinpoint on Google Play</a>
+    <div class="steps">
+      <div><b>1</b><span>Don't have Pinpoint yet? Install it and sign in.</span></div>
+      <div><b>2</b><span>Come back to this link and tap <strong>Open invite in Pinpoint</strong>.</span></div>
+    </div>
+  </main>
+  <main class="card error hidden" id="bad">
+    <div class="brand"><img src="/assets/logo-white.svg" alt="" />Pinpoint</div>
+    <h1 style="margin-top:20px">This invite link isn't complete</h1>
+    <p>Ask the person who invited you to send the link again.</p>
+  </main>
+<script>
+  (function () {
+    var KEY = "pinpointSquadInvite";
+    var fromHash = (window.location.hash || "").replace(/^#t=/, "");
+    var token = /^[a-f0-9]{48}$/.test(fromHash) ? fromHash : null;
+    try {
+      if (token) localStorage.setItem(KEY, JSON.stringify({t: token, at: Date.now()}));
+      else {
+        var saved = JSON.parse(localStorage.getItem(KEY) || "null");
+        if (saved && /^[a-f0-9]{48}$/.test(saved.t) && Date.now() - saved.at < 72 * 3600 * 1000) token = saved.t;
+      }
+    } catch (e) {}
+    if (!token) {
+      document.getElementById("invite").classList.add("hidden");
+      document.getElementById("bad").classList.remove("hidden");
+      return;
+    }
+    if (window.history && history.replaceState) history.replaceState(null, "", "/s/" + token);
+    var ua = navigator.userAgent || "";
+    var isIOS = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    var isAndroid = /Android/.test(ua);
+    if (isIOS) document.getElementById("android").classList.add("hidden");
+    if (isAndroid) document.getElementById("ios").classList.add("hidden");
+    var open = document.getElementById("open");
+    open.href = "pinpointapp://squad?t=" + token;
+    if (isAndroid) open.classList.add("hidden");
+  })();
+</script>
+</body>
+</html>

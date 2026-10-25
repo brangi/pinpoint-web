@@ -33,6 +33,14 @@
         sep += "&" + search.slice(1);
       }
       window.location.replace("/live.html" + sep);
+      return;
+    }
+    // `/s/<token>` is a squad invite. With the app installed iOS opens it
+    // directly (apple-app-site-association); otherwise show the invite page.
+    // The token moves to the hash so it isn't sent in later requests.
+    var s = path.match(/^\/s\/([a-f0-9]{48})\/?$/);
+    if (s) {
+      window.location.replace("/invite.html#t=" + s[1]);
     }
   })();
 </script>

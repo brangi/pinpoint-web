@@ -1,0 +1,12 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["XN3RUKH46A.com.pinpoint"],
+        "components": [
+          { "/": "/s/*", "comment": "Squad invite links open the Pinpoint app" }
+        ]
+      }
+    ]
+  }
+}
